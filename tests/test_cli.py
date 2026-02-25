@@ -73,6 +73,10 @@ def test_collect_commits_and_render(tmp_path: Path):
         target_ref="HEAD",
         repo_url="https://example.com/repo",
         release_url=None,
+        group_by="type",
+        title_template="# {repo} devlog draft",
+        include_validation=True,
+        include_links=True,
     )
     assert "# demo devlog draft" in draft
     assert "- patch bug" in draft
@@ -124,6 +128,10 @@ def test_cmd_draft_writes_output_file(tmp_path: Path):
         release_url=None,
         include_type=None,
         exclude_type=None,
+        group_by="type",
+        title_template=None,
+        no_validation=False,
+        no_links=False,
         output="out/devlog.md",
     )
     rc = cmd_draft(args)
@@ -147,3 +155,29 @@ def test_filter_commits_include_exclude_types():
 
     no_docs = filter_commits(commits, include_types=None, exclude_types={"docs"})
     assert [c.sha for c in no_docs] == ["1", "2"]
+
+
+def test_render_draft_group_by_scope_and_toggle_sections():
+    commits = [
+        Commit(sha="1", subject="feat(api): add endpoint"),
+        Commit(sha="2", subject="fix(ui): patch modal"),
+    ]
+
+    draft = render_draft(
+        repo_name="demo",
+        commits=commits,
+        changelog_items=[],
+        base_ref="v0.1.0",
+        target_ref="HEAD",
+        repo_url=None,
+        release_url=None,
+        group_by="scope",
+        title_template="# Release notes for {repo}",
+        include_validation=False,
+        include_links=False,
+    )
+    assert "# Release notes for demo" in draft
+    assert "- [api]" in draft
+    assert "- [ui]" in draft
+    assert "## Validation" not in draft
+    assert "## Links" not in draft

@@ -104,6 +104,14 @@ def _commit_type(subject: str) -> str:
     return "other"
 
 
+def _commit_scope(subject: str) -> str:
+    m = re.match(r"^[a-z]+\(([^)]+)\)!?:", subject.strip(), flags=re.IGNORECASE)
+    if not m:
+        return "general"
+    scope = m.group(1).strip().lower()
+    return scope or "general"
+
+
 def _bucket_for_subject(subject: str) -> str:
     commit_type = _commit_type(subject)
     if commit_type == "feat":
@@ -144,17 +152,31 @@ def render_draft(
     target_ref: str,
     repo_url: str | None,
     release_url: str | None,
+    group_by: str,
+    title_template: str,
+    include_validation: bool,
+    include_links: bool,
 ) -> str:
     bullets: list[str] = []
 
     if commits:
-        grouped: dict[str, list[str]] = {"features": [], "fixes": [], "docs": [], "other": []}
-        for c in commits:
-            grouped[_bucket_for_subject(c.subject)].append(_normalize_subject(c.subject))
+        if group_by == "scope":
+            grouped_scope: dict[str, list[str]] = {}
+            for c in commits:
+                scope = _commit_scope(c.subject)
+                grouped_scope.setdefault(scope, []).append(_normalize_subject(c.subject))
+            for scope in sorted(grouped_scope.keys()):
+                bullets.append(f"- [{scope}]")
+                for item in grouped_scope[scope]:
+                    bullets.append(f"  - {item}")
+        else:
+            grouped: dict[str, list[str]] = {"features": [], "fixes": [], "docs": [], "other": []}
+            for c in commits:
+                grouped[_bucket_for_subject(c.subject)].append(_normalize_subject(c.subject))
 
-        for key in ("features", "fixes", "docs", "other"):
-            for item in grouped[key]:
-                bullets.append(f"- {item}")
+            for key in ("features", "fixes", "docs", "other"):
+                for item in grouped[key]:
+                    bullets.append(f"- {item}")
 
     for item in changelog_items:
         b = f"- {item}"
@@ -162,7 +184,7 @@ def render_draft(
             bullets.append(b)
 
     if bullets:
-        what_shipped = "\n".join(bullets[:10])
+        what_shipped = "\n".join(bullets[:12])
         why = f"- Captures {len(commits)} commit(s) from `{base_ref or 'start'}..{target_ref}` with changelog context when available."
     else:
         what_shipped = "- No commits or changelog bullets found for selected range."
@@ -176,25 +198,35 @@ def render_draft(
     if not links:
         links.append("- Repo: <add-repo-url>")
 
-    return "\n".join(
-        [
-            f"# {repo_name} devlog draft",
-            "",
-            "## What shipped",
-            what_shipped,
-            "",
-            "## Why it matters",
-            why,
-            "",
+    title = title_template.replace("{repo}", repo_name)
+
+    out = [
+        title,
+        "",
+        "## What shipped",
+        what_shipped,
+        "",
+        "## Why it matters",
+        why,
+        "",
+    ]
+
+    if include_validation:
+        out.extend([
             "## Validation",
             "- Tests: <fill>",
             "- Secret scan: <fill>",
             "",
+        ])
+
+    if include_links:
+        out.extend([
             "## Links",
             *links,
             "",
-        ]
-    )
+        ])
+
+    return "\n".join(out)
 
 
 def cmd_draft(args: argparse.Namespace) -> int:
@@ -219,6 +251,10 @@ def cmd_draft(args: argparse.Namespace) -> int:
     commits = filter_commits(commits, include_types=include_types, exclude_types=exclude_types)
     changelog_items = extract_changelog_items(repo_path)
 
+    group_by = args.group_by or "type"
+    if group_by not in {"type", "scope"}:
+        raise ValueError("group_by must be one of: type, scope")
+
     repo_name = repo_path.name
     output = render_draft(
         repo_name=repo_name,
@@ -228,6 +264,10 @@ def cmd_draft(args: argparse.Namespace) -> int:
         target_ref=target_ref,
         repo_url=args.repo_url,
         release_url=args.release_url,
+        group_by=group_by,
+        title_template=args.title_template or "# {repo} devlog draft",
+        include_validation=not args.no_validation,
+        include_links=not args.no_links,
     )
 
     if args.output:
@@ -263,6 +303,10 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         help="Exclude commits with this type (repeatable: feat|fix|docs|refactor|test|chore|other)",
     )
+    draft.add_argument("--group-by", choices=["type", "scope"], default="type", help="Group commit bullets by type or scope")
+    draft.add_argument("--title-template", help="Title template, supports {repo} placeholder")
+    draft.add_argument("--no-validation", action="store_true", help="Skip Validation section")
+    draft.add_argument("--no-links", action="store_true", help="Skip Links section")
     draft.add_argument("--output", help="Write markdown output to a file")
     draft.set_defaults(func=cmd_draft)
 
