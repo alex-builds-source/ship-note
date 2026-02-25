@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.8] - 2026-02-25
+### Changed
+- Refined short-mode low-signal fallback heuristics:
+  - suppress stale changelog carryover when all in-range commits are filtered as low-signal
+  - preserve low-signal commit bullets when no changelog context exists (avoid empty drafts)
+- Expanded tests/docs for refined short-mode fallback behavior (`16 passed`).
+
 ## [0.1.7] - 2026-02-25
 ### Changed
 - Suppress changelog enrichment when selected commit range has zero commits (avoids stale summaries).
