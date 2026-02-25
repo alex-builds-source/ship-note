@@ -254,6 +254,42 @@ def test_cmd_draft_short_keeps_low_signal_when_no_changelog(tmp_path: Path):
     assert "publish v0.1.0 devlog" in text
 
 
+def test_cmd_draft_short_filters_dependency_chore_with_stale_changelog(tmp_path: Path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    _write(repo, "README.md", "x\n")
+    _write(repo, "CHANGELOG.md", "# Changelog\n\n## [0.2.0]\n- Added parser improvements\n")
+    _commit_all(repo, "chore: bump dependencies")
+
+    args = argparse.Namespace(
+        path=str(repo),
+        since_tag=None,
+        since_commit=None,
+        repo_url=None,
+        release_url=None,
+        include_type=None,
+        exclude_type=None,
+        include_scope=None,
+        exclude_scope=None,
+        preset="short",
+        group_by="type",
+        title_template=None,
+        no_validation=False,
+        no_links=False,
+        keep_low_signal=False,
+        max_bullets=None,
+        max_changelog_items=None,
+        output="out/short.md",
+    )
+    rc = cmd_draft(args)
+    assert rc == 0
+    text = (repo / "out" / "short.md").read_text(encoding="utf-8")
+    assert "bump dependencies" not in text
+    assert "Added parser improvements" not in text
+    assert "No commits or changelog bullets found" in text
+
+
 def test_cmd_draft_drops_changelog_when_range_has_no_commits(tmp_path: Path):
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -295,6 +331,8 @@ def test_filter_low_signal_commits_drops_release_admin_noise():
         Commit(sha="1", subject="feat: add parser"),
         Commit(sha="2", subject="docs: publish v0.1.0 devlog"),
         Commit(sha="3", subject="chore: prepare v0.1.4 release notes and version"),
+        Commit(sha="4", subject="docs: update changelog for v0.1.8"),
+        Commit(sha="5", subject="chore: bump dependencies"),
     ]
     filtered = filter_low_signal_commits(commits)
     assert [c.sha for c in filtered] == ["1"]

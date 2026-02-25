@@ -179,11 +179,24 @@ def filter_commits(
 
 def _is_low_signal_subject(subject: str) -> bool:
     s = subject.strip().lower()
-    return (
-        (s.startswith("docs:") and "devlog" in s)
-        or (s.startswith("chore:") and "release" in s)
-        or (s.startswith("chore:") and "version" in s)
-    )
+
+    if s.startswith("docs:"):
+        return any(token in s for token in ("devlog", "release notes", "changelog"))
+
+    if s.startswith("chore:"):
+        return any(
+            token in s
+            for token in (
+                "release",
+                "version",
+                "bump deps",
+                "bump dependencies",
+                "dependency",
+                "changelog",
+            )
+        )
+
+    return False
 
 
 def filter_low_signal_commits(commits: list[Commit]) -> list[Commit]:

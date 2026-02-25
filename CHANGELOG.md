@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.9] - 2026-02-25
+### Changed
+- Expanded short-preset low-signal filtering heuristics to suppress common release-maintenance noise:
+  - `docs:` commits mentioning `devlog`, `release notes`, or `changelog`
+  - `chore:` commits mentioning release/version/dependency/changelog maintenance terms
+- Added regression coverage for dependency-chore filtering in short mode.
+- Added version-consistency test to keep `pyproject.toml` and package `__version__` aligned.
+
 ## [0.1.8] - 2026-02-25
 ### Changed
 - Refined short-mode low-signal fallback heuristics:
