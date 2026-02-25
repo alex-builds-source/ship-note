@@ -183,6 +183,7 @@ def render_draft(
     title_template: str,
     include_validation: bool,
     include_links: bool,
+    max_bullets: int,
 ) -> str:
     bullets: list[str] = []
 
@@ -211,7 +212,7 @@ def render_draft(
             bullets.append(b)
 
     if bullets:
-        what_shipped = "\n".join(bullets[:12])
+        what_shipped = "\n".join(bullets[:max_bullets])
         why = f"- Captures {len(commits)} commit(s) from `{base_ref or 'start'}..{target_ref}` with changelog context when available."
     else:
         what_shipped = "- No commits or changelog bullets found for selected range."
@@ -288,6 +289,14 @@ def cmd_draft(args: argparse.Namespace) -> int:
     if group_by not in {"type", "scope"}:
         raise ValueError("group_by must be one of: type, scope")
 
+    preset = args.preset or "standard"
+    if preset not in {"short", "standard"}:
+        raise ValueError("preset must be one of: short, standard")
+
+    default_title_template = "# {repo} update" if preset == "short" else "# {repo} devlog draft"
+    default_include_validation = preset != "short"
+    max_bullets = 6 if preset == "short" else 12
+
     repo_name = repo_path.name
     output = render_draft(
         repo_name=repo_name,
@@ -298,9 +307,10 @@ def cmd_draft(args: argparse.Namespace) -> int:
         repo_url=args.repo_url,
         release_url=args.release_url,
         group_by=group_by,
-        title_template=args.title_template or "# {repo} devlog draft",
-        include_validation=not args.no_validation,
+        title_template=args.title_template or default_title_template,
+        include_validation=default_include_validation and (not args.no_validation),
         include_links=not args.no_links,
+        max_bullets=max_bullets,
     )
 
     if args.output:
@@ -345,6 +355,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--exclude-scope",
         action="append",
         help="Exclude commits with this scope (repeatable, conventional commit scope; use 'general' when no scope)",
+    )
+    draft.add_argument(
+        "--preset",
+        choices=["short", "standard"],
+        default="standard",
+        help="Output preset: short is concise for chat updates; standard is fuller release notes",
     )
     draft.add_argument("--group-by", choices=["type", "scope"], default="type", help="Group commit bullets by type or scope")
     draft.add_argument("--title-template", help="Title template, supports {repo} placeholder")

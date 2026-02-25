@@ -77,6 +77,7 @@ def test_collect_commits_and_render(tmp_path: Path):
         title_template="# {repo} devlog draft",
         include_validation=True,
         include_links=True,
+        max_bullets=12,
     )
     assert "# demo devlog draft" in draft
     assert "- patch bug" in draft
@@ -130,6 +131,7 @@ def test_cmd_draft_writes_output_file(tmp_path: Path):
         exclude_type=None,
         include_scope=None,
         exclude_scope=None,
+        preset="standard",
         group_by="type",
         title_template=None,
         no_validation=False,
@@ -143,6 +145,37 @@ def test_cmd_draft_writes_output_file(tmp_path: Path):
     text = out.read_text(encoding="utf-8")
     assert "devlog draft" in text
     assert "Added draft support" in text
+
+
+def test_cmd_draft_short_preset_omits_validation_and_uses_short_title(tmp_path: Path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    _write(repo, "README.md", "x\n")
+    _commit_all(repo, "feat: init")
+
+    args = argparse.Namespace(
+        path=str(repo),
+        since_tag=None,
+        since_commit=None,
+        repo_url=None,
+        release_url=None,
+        include_type=None,
+        exclude_type=None,
+        include_scope=None,
+        exclude_scope=None,
+        preset="short",
+        group_by="type",
+        title_template=None,
+        no_validation=False,
+        no_links=False,
+        output="out/short.md",
+    )
+    rc = cmd_draft(args)
+    assert rc == 0
+    text = (repo / "out" / "short.md").read_text(encoding="utf-8")
+    assert "# repo update" in text
+    assert "## Validation" not in text
 
 
 def test_filter_commits_include_exclude_types():
@@ -215,6 +248,7 @@ def test_render_draft_group_by_scope_and_toggle_sections():
         title_template="# Release notes for {repo}",
         include_validation=False,
         include_links=False,
+        max_bullets=12,
     )
     assert "# Release notes for demo" in draft
     assert "- [api]" in draft

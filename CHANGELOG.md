@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.3] - 2026-02-25
+### Added
+- Output presets via `--preset`:
+  - `standard` (fuller release-note style)
+  - `short` (concise chat/update style)
+
+### Changed
+- Presets now control defaults for title and section verbosity while preserving existing explicit flags.
+- Added tests and docs for preset behavior (`10 passed`).
+
 ## [0.1.2] - 2026-02-25
 ### Added
 - Scope filters for draft generation:
