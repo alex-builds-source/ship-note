@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.4] - 2026-02-25
+### Added
+- Draft output cap controls:
+  - `--max-bullets`
+  - `--max-changelog-items`
+
+### Changed
+- Added normalization-based dedupe between commit-derived and changelog-derived bullets.
+- Tightened `--preset short` defaults for more concise updates.
+- Expanded tests and docs for dedupe + cap behavior (`12 passed`).
+
 ## [0.1.3] - 2026-02-25
 ### Added
 - Output presets via `--preset`:
