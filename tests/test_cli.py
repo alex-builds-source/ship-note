@@ -106,10 +106,10 @@ def test_extract_changelog_items(tmp_path: Path):
     _write(
         repo,
         "CHANGELOG.md",
-        "# Changelog\n\n## [0.1.0]\n- Added draft command\n- Added tests\n",
+        "# Changelog\n\n## [0.2.0]\n- Added new parser\n\n## [0.1.0]\n- Added draft command\n- Added tests\n",
     )
     items = extract_changelog_items(repo)
-    assert items == ["Added draft command", "Added tests"]
+    assert items == ["Added new parser"]
 
 
 def test_cmd_draft_writes_output_file(tmp_path: Path):
@@ -128,6 +128,8 @@ def test_cmd_draft_writes_output_file(tmp_path: Path):
         release_url=None,
         include_type=None,
         exclude_type=None,
+        include_scope=None,
+        exclude_scope=None,
         group_by="type",
         title_template=None,
         no_validation=False,
@@ -150,11 +152,49 @@ def test_filter_commits_include_exclude_types():
         Commit(sha="3", subject="docs: update readme"),
     ]
 
-    only_feat = filter_commits(commits, include_types={"feat"}, exclude_types=None)
+    only_feat = filter_commits(
+        commits,
+        include_types={"feat"},
+        exclude_types=None,
+        include_scopes=None,
+        exclude_scopes=None,
+    )
     assert [c.sha for c in only_feat] == ["1"]
 
-    no_docs = filter_commits(commits, include_types=None, exclude_types={"docs"})
+    no_docs = filter_commits(
+        commits,
+        include_types=None,
+        exclude_types={"docs"},
+        include_scopes=None,
+        exclude_scopes=None,
+    )
     assert [c.sha for c in no_docs] == ["1", "2"]
+
+
+def test_filter_commits_include_exclude_scopes():
+    commits = [
+        Commit(sha="1", subject="feat(api): add endpoint"),
+        Commit(sha="2", subject="fix(ui): patch modal"),
+        Commit(sha="3", subject="chore: clean up"),
+    ]
+
+    only_api = filter_commits(
+        commits,
+        include_types=None,
+        exclude_types=None,
+        include_scopes={"api"},
+        exclude_scopes=None,
+    )
+    assert [c.sha for c in only_api] == ["1"]
+
+    no_general = filter_commits(
+        commits,
+        include_types=None,
+        exclude_types=None,
+        include_scopes=None,
+        exclude_scopes={"general"},
+    )
+    assert [c.sha for c in no_general] == ["1", "2"]
 
 
 def test_render_draft_group_by_scope_and_toggle_sections():

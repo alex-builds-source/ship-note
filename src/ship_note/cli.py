@@ -76,8 +76,26 @@ def extract_changelog_items(path: Path, *, max_items: int = 6) -> list[str]:
         return []
 
     lines = changelog.read_text(encoding="utf-8").splitlines()
+
+    start_idx: int | None = None
+    end_idx = len(lines)
+
+    for i, line in enumerate(lines):
+        if line.strip().startswith("## "):
+            start_idx = i + 1
+            break
+
+    if start_idx is not None:
+        for j in range(start_idx, len(lines)):
+            if lines[j].strip().startswith("## "):
+                end_idx = j
+                break
+        scan = lines[start_idx:end_idx]
+    else:
+        scan = lines
+
     out: list[str] = []
-    for line in lines:
+    for line in scan:
         s = line.strip()
         if not s.startswith("- "):
             continue
@@ -87,6 +105,7 @@ def extract_changelog_items(path: Path, *, max_items: int = 6) -> list[str]:
         out.append(item)
         if len(out) >= max_items:
             break
+
     return out
 
 
@@ -128,16 +147,25 @@ def filter_commits(
     *,
     include_types: set[str] | None,
     exclude_types: set[str] | None,
+    include_scopes: set[str] | None,
+    exclude_scopes: set[str] | None,
 ) -> list[Commit]:
     include = include_types or set()
     exclude = exclude_types or set()
+    include_scope_set = {s.lower() for s in (include_scopes or set())}
+    exclude_scope_set = {s.lower() for s in (exclude_scopes or set())}
 
     out: list[Commit] = []
     for c in commits:
         ctype = _commit_type(c.subject)
+        scope = _commit_scope(c.subject)
         if include and ctype not in include:
             continue
         if ctype in exclude:
+            continue
+        if include_scope_set and scope not in include_scope_set:
+            continue
+        if scope in exclude_scope_set:
             continue
         out.append(c)
     return out
@@ -248,7 +276,13 @@ def cmd_draft(args: argparse.Namespace) -> int:
     if unknown:
         raise ValueError(f"Unknown commit types: {', '.join(unknown)}")
 
-    commits = filter_commits(commits, include_types=include_types, exclude_types=exclude_types)
+    commits = filter_commits(
+        commits,
+        include_types=include_types,
+        exclude_types=exclude_types,
+        include_scopes=set(args.include_scope or []),
+        exclude_scopes=set(args.exclude_scope or []),
+    )
     changelog_items = extract_changelog_items(repo_path)
 
     group_by = args.group_by or "type"
@@ -302,6 +336,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--exclude-type",
         action="append",
         help="Exclude commits with this type (repeatable: feat|fix|docs|refactor|test|chore|other)",
+    )
+    draft.add_argument(
+        "--include-scope",
+        action="append",
+        help="Only include commits with this scope (repeatable, conventional commit scope; use 'general' when no scope)",
+    )
+    draft.add_argument(
+        "--exclude-scope",
+        action="append",
+        help="Exclude commits with this scope (repeatable, conventional commit scope; use 'general' when no scope)",
     )
     draft.add_argument("--group-by", choices=["type", "scope"], default="type", help="Group commit bullets by type or scope")
     draft.add_argument("--title-template", help="Title template, supports {repo} placeholder")

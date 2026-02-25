@@ -15,6 +15,8 @@ Render a markdown devlog draft from git commit history, optionally enriched with
 - `--release-url <url>`: include release URL in links section
 - `--include-type <type>`: only include commit types (repeatable)
 - `--exclude-type <type>`: exclude commit types (repeatable)
+- `--include-scope <scope>`: only include commit scopes (repeatable, use `general` for unscoped commits)
+- `--exclude-scope <scope>`: exclude commit scopes (repeatable, use `general` for unscoped commits)
 - `--group-by <type|scope>`: group commit bullets by type or conventional-commit scope
 - `--title-template <text>`: customize title (supports `{repo}` placeholder)
 - `--no-validation`: skip Validation section
@@ -30,7 +32,7 @@ Render a markdown devlog draft from git commit history, optionally enriched with
 
 ## Changelog behavior
 
-- If `CHANGELOG.md` exists, top bullet items are merged into `What shipped` (deduplicated against commit-derived bullets).
+- If `CHANGELOG.md` exists, bullets from the latest changelog section are merged into `What shipped` (deduplicated against commit-derived bullets).
 
 ## Examples
 
@@ -40,6 +42,7 @@ ship-note draft --since-tag v0.1.0
 ship-note draft --since-commit 8f2c2a1
 ship-note draft --repo-url https://github.com/org/repo --release-url https://github.com/org/repo/releases/tag/v0.2.0
 ship-note draft --include-type feat --include-type fix --exclude-type docs
+ship-note draft --include-scope api --exclude-scope general --group-by scope
 ship-note draft --group-by scope --title-template "# {repo} release notes" --no-validation
 ship-note draft --output notes/devlog-draft.md
 ```
