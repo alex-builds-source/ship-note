@@ -216,8 +216,9 @@ def test_cmd_draft_short_drops_low_signal_when_changelog_exists(tmp_path: Path):
     rc = cmd_draft(args)
     assert rc == 0
     text = (repo / "out" / "short.md").read_text(encoding="utf-8")
-    assert "Added parser improvements" in text
+    assert "Added parser improvements" not in text
     assert "publish v0.1.0 devlog" not in text
+    assert "No commits or changelog bullets found" in text
 
 
 def test_cmd_draft_short_keeps_low_signal_when_no_changelog(tmp_path: Path):

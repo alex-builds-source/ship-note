@@ -355,10 +355,15 @@ def cmd_draft(args: argparse.Namespace) -> int:
         filtered = filter_low_signal_commits(commits)
         if filtered:
             commits = filtered
+        elif raw_commit_count > 0:
+            if changelog_items:
+                # all in-range commits are low-signal; avoid stale changelog carryover
+                commits = []
+                changelog_items = []
+            # else: keep low-signal commits so output is not empty
         elif changelog_items:
-            # prefer changelog signal over low-signal commit noise
+            # no in-range commits, but changelog may still carry useful context
             commits = []
-        # else: keep original commits so output is not empty when no changelog exists
 
     repo_name = repo_path.name
     output = render_draft(
