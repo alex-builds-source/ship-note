@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.7] - 2026-02-25
+### Changed
+- Suppress changelog enrichment when selected commit range has zero commits (avoids stale summaries).
+- Added tests/docs for no-commit-range behavior and short-mode output consistency (`16 passed`).
+
 ## [0.1.6] - 2026-02-25
 ### Changed
 - Refined short-mode low-signal handling:

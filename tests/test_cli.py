@@ -253,6 +253,42 @@ def test_cmd_draft_short_keeps_low_signal_when_no_changelog(tmp_path: Path):
     assert "publish v0.1.0 devlog" in text
 
 
+def test_cmd_draft_drops_changelog_when_range_has_no_commits(tmp_path: Path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    _write(repo, "README.md", "x\n")
+    _write(repo, "CHANGELOG.md", "# Changelog\n\n## [0.1.0]\n- Added major feature\n")
+    _commit_all(repo, "feat: init")
+    _run(["git", "tag", "v0.1.0"], repo)
+
+    args = argparse.Namespace(
+        path=str(repo),
+        since_tag="v0.1.0",
+        since_commit=None,
+        repo_url=None,
+        release_url=None,
+        include_type=None,
+        exclude_type=None,
+        include_scope=None,
+        exclude_scope=None,
+        preset="short",
+        group_by="type",
+        title_template=None,
+        no_validation=False,
+        no_links=False,
+        keep_low_signal=False,
+        max_bullets=None,
+        max_changelog_items=None,
+        output="out/short.md",
+    )
+    rc = cmd_draft(args)
+    assert rc == 0
+    text = (repo / "out" / "short.md").read_text(encoding="utf-8")
+    assert "Added major feature" not in text
+    assert "No commits or changelog bullets found" in text
+
+
 def test_filter_low_signal_commits_drops_release_admin_noise():
     commits = [
         Commit(sha="1", subject="feat: add parser"),

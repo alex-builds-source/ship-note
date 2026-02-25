@@ -37,6 +37,7 @@ Render a markdown devlog draft from git commit history, optionally enriched with
 ## Changelog behavior
 
 - If `CHANGELOG.md` exists, bullets from the latest changelog section are merged into `What shipped` (deduplicated against commit-derived bullets).
+- When the selected commit range has no commits, changelog enrichment is suppressed to avoid stale summaries.
 
 ## Short preset behavior
 

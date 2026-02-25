@@ -307,6 +307,7 @@ def cmd_draft(args: argparse.Namespace) -> int:
         since_commit=args.since_commit,
     )
     commits = collect_commits(repo_path, range_spec=range_spec)
+    raw_commit_count = len(commits)
 
     include_types = set(args.include_type or [])
     exclude_types = set(args.exclude_type or [])
@@ -346,6 +347,9 @@ def cmd_draft(args: argparse.Namespace) -> int:
         raise ValueError("max_changelog_items must be > 0")
 
     changelog_items = extract_changelog_items(repo_path, max_items=max_changelog_items)
+    if raw_commit_count == 0:
+        # avoid stale "what shipped" bullets when range has no new commits
+        changelog_items = []
 
     if preset == "short" and not args.keep_low_signal:
         filtered = filter_low_signal_commits(commits)
