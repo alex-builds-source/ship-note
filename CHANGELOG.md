@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.6] - 2026-02-25
+### Changed
+- Refined short-mode low-signal handling:
+  - Prefer changelog signal when low-signal commits are filtered out.
+  - Keep commit bullets when filtering would otherwise produce an empty draft and no changelog context exists.
+- Added tests for low-signal fallback behavior and updated CLI docs.
+
 ## [0.1.5] - 2026-02-25
 ### Added
 - Short-preset low-signal filtering heuristics for common release/admin commits.
