@@ -1,0 +1,7 @@
+# Local overrides for gitleaks (keep minimal)
+[allowlist]
+description = "Allow docs examples with clearly fake placeholders"
+regexes = [
+  '''(?i)example[_-]?token''',
+  '''(?i)fake[_-]?key''',
+]
