@@ -1,26 +1,38 @@
 # ship-note
 
-Generate concise release/devlog drafts from git history and changelog
+Generate concise release/devlog drafts from git history and optional release metadata.
 
-## Scaffold profile
+## Install (dev)
 
-- Preset: `cli-only`
-- Pre-commit scaffold: `no`
-- Release workflow scaffold: `yes`
+```bash
+pip install -e .
+```
 
 ## Quickstart
 
 ```bash
-# install dependencies
-# run project
+ship-note draft --path .
+ship-note draft --since-tag v0.1.0
+ship-note draft --since-commit HEAD~5
 ```
 
-## Interfaces
+## What it outputs
 
-- CLI: see `docs/CLI.md` when present
-- API: see `docs/API.md` when present
+Deterministic markdown sections:
+- Title
+- What shipped
+- Why it matters
+- Validation
+- Links
+
+## CLI docs
+
+See `docs/CLI.md` for full options and behavior.
 
 ## Development
 
-- Keep docs updated for humans and agents.
-- Keep interfaces stable and explicit.
+```bash
+PYTHONPATH=src pytest -q
+```
+
+Security note: run `repo-preflight`/`gitleaks` before publishing.
