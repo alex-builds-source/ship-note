@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.5] - 2026-02-25
+### Added
+- Short-preset low-signal filtering heuristics for common release/admin commits.
+- `--keep-low-signal` override flag when that filtering should be disabled.
+
+### Changed
+- Expanded tests and docs for short-mode filtering behavior (`13 passed`).
+
 ## [0.1.4] - 2026-02-25
 ### Added
 - Draft output cap controls:
