@@ -114,6 +114,13 @@ def _normalize_subject(subject: str) -> str:
     return normalized or subject
 
 
+def _canonical_item(text: str) -> str:
+    normalized = text.lower().replace("`", "")
+    normalized = re.sub(r"[^a-z0-9\s]", " ", normalized)
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    return normalized
+
+
 def _commit_type(subject: str) -> str:
     lower = subject.lower()
     for kind in ("feat", "fix", "docs", "refactor", "test", "chore"):
@@ -186,6 +193,7 @@ def render_draft(
     max_bullets: int,
 ) -> str:
     bullets: list[str] = []
+    seen_items: set[str] = set()
 
     if commits:
         if group_by == "scope":
@@ -193,9 +201,21 @@ def render_draft(
             for c in commits:
                 scope = _commit_scope(c.subject)
                 grouped_scope.setdefault(scope, []).append(_normalize_subject(c.subject))
+
             for scope in sorted(grouped_scope.keys()):
-                bullets.append(f"- [{scope}]")
+                scope_items: list[str] = []
                 for item in grouped_scope[scope]:
+                    canon = _canonical_item(item)
+                    if not canon or canon in seen_items:
+                        continue
+                    seen_items.add(canon)
+                    scope_items.append(item)
+
+                if not scope_items:
+                    continue
+
+                bullets.append(f"- [{scope}]")
+                for item in scope_items:
                     bullets.append(f"  - {item}")
         else:
             grouped: dict[str, list[str]] = {"features": [], "fixes": [], "docs": [], "other": []}
@@ -204,12 +224,18 @@ def render_draft(
 
             for key in ("features", "fixes", "docs", "other"):
                 for item in grouped[key]:
+                    canon = _canonical_item(item)
+                    if not canon or canon in seen_items:
+                        continue
+                    seen_items.add(canon)
                     bullets.append(f"- {item}")
 
     for item in changelog_items:
-        b = f"- {item}"
-        if b not in bullets:
-            bullets.append(b)
+        canon = _canonical_item(item)
+        if not canon or canon in seen_items:
+            continue
+        seen_items.add(canon)
+        bullets.append(f"- {item}")
 
     if bullets:
         what_shipped = "\n".join(bullets[:max_bullets])
@@ -283,7 +309,6 @@ def cmd_draft(args: argparse.Namespace) -> int:
         include_scopes=set(args.include_scope or []),
         exclude_scopes=set(args.exclude_scope or []),
     )
-    changelog_items = extract_changelog_items(repo_path)
 
     group_by = args.group_by or "type"
     if group_by not in {"type", "scope"}:
@@ -295,7 +320,19 @@ def cmd_draft(args: argparse.Namespace) -> int:
 
     default_title_template = "# {repo} update" if preset == "short" else "# {repo} devlog draft"
     default_include_validation = preset != "short"
-    max_bullets = 6 if preset == "short" else 12
+    default_max_bullets = 4 if preset == "short" else 12
+    default_max_changelog_items = 4 if preset == "short" else 6
+
+    max_bullets = args.max_bullets if args.max_bullets is not None else default_max_bullets
+    max_changelog_items = (
+        args.max_changelog_items if args.max_changelog_items is not None else default_max_changelog_items
+    )
+    if max_bullets <= 0:
+        raise ValueError("max_bullets must be > 0")
+    if max_changelog_items <= 0:
+        raise ValueError("max_changelog_items must be > 0")
+
+    changelog_items = extract_changelog_items(repo_path, max_items=max_changelog_items)
 
     repo_name = repo_path.name
     output = render_draft(
@@ -363,6 +400,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Output preset: short is concise for chat updates; standard is fuller release notes",
     )
     draft.add_argument("--group-by", choices=["type", "scope"], default="type", help="Group commit bullets by type or scope")
+    draft.add_argument("--max-bullets", type=int, help="Cap bullet lines in What shipped")
+    draft.add_argument("--max-changelog-items", type=int, help="Cap changelog bullets considered for enrichment")
     draft.add_argument("--title-template", help="Title template, supports {repo} placeholder")
     draft.add_argument("--no-validation", action="store_true", help="Skip Validation section")
     draft.add_argument("--no-links", action="store_true", help="Skip Links section")

@@ -15,6 +15,7 @@ ship-note draft --path .
 ship-note draft --since-tag v0.1.0
 ship-note draft --since-commit HEAD~5
 ship-note draft --preset short --group-by scope
+ship-note draft --preset short --max-bullets 3 --max-changelog-items 2
 ship-note draft --output notes/devlog-draft.md
 ```
 

@@ -136,6 +136,8 @@ def test_cmd_draft_writes_output_file(tmp_path: Path):
         title_template=None,
         no_validation=False,
         no_links=False,
+        max_bullets=None,
+        max_changelog_items=None,
         output="out/devlog.md",
     )
     rc = cmd_draft(args)
@@ -169,6 +171,8 @@ def test_cmd_draft_short_preset_omits_validation_and_uses_short_title(tmp_path: 
         title_template=None,
         no_validation=False,
         no_links=False,
+        max_bullets=None,
+        max_changelog_items=None,
         output="out/short.md",
     )
     rc = cmd_draft(args)
@@ -230,6 +234,26 @@ def test_filter_commits_include_exclude_scopes():
     assert [c.sha for c in no_general] == ["1", "2"]
 
 
+def test_render_draft_dedupes_changelog_items_against_commits():
+    commits = [Commit(sha="1", subject="feat: add parser")]
+    draft = render_draft(
+        repo_name="demo",
+        commits=commits,
+        changelog_items=["Add parser.", "Added docs"],
+        base_ref="v0.1.0",
+        target_ref="HEAD",
+        repo_url=None,
+        release_url=None,
+        group_by="type",
+        title_template="# {repo} devlog draft",
+        include_validation=True,
+        include_links=False,
+        max_bullets=12,
+    )
+    assert draft.lower().count("add parser") == 1
+    assert "- Added docs" in draft
+
+
 def test_render_draft_group_by_scope_and_toggle_sections():
     commits = [
         Commit(sha="1", subject="feat(api): add endpoint"),
@@ -255,3 +279,28 @@ def test_render_draft_group_by_scope_and_toggle_sections():
     assert "- [ui]" in draft
     assert "## Validation" not in draft
     assert "## Links" not in draft
+
+
+def test_render_draft_respects_max_bullets_cap():
+    commits = [
+        Commit(sha="1", subject="feat: add one"),
+        Commit(sha="2", subject="fix: add two"),
+        Commit(sha="3", subject="docs: add three"),
+    ]
+    draft = render_draft(
+        repo_name="demo",
+        commits=commits,
+        changelog_items=["Added four"],
+        base_ref="v0.1.0",
+        target_ref="HEAD",
+        repo_url=None,
+        release_url=None,
+        group_by="type",
+        title_template="# {repo} devlog draft",
+        include_validation=False,
+        include_links=False,
+        max_bullets=2,
+    )
+    section = draft.split("## What shipped\n", 1)[1].split("\n\n## Why", 1)[0]
+    bullet_lines = [line for line in section.splitlines() if line.strip().startswith("-")]
+    assert len(bullet_lines) == 2
