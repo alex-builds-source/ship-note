@@ -21,6 +21,7 @@ Render a markdown devlog draft from git commit history, optionally enriched with
 - `--group-by <type|scope>`: group commit bullets by type or conventional-commit scope
 - `--max-bullets <n>`: cap bullet lines in `What shipped`
 - `--max-changelog-items <n>`: cap changelog bullets used for enrichment
+- `--keep-low-signal`: in `short` preset, keep release/admin commits that are filtered by default
 - `--title-template <text>`: customize title (supports `{repo}` placeholder)
 - `--no-validation`: skip Validation section
 - `--no-links`: skip Links section
@@ -37,6 +38,12 @@ Render a markdown devlog draft from git commit history, optionally enriched with
 
 - If `CHANGELOG.md` exists, bullets from the latest changelog section are merged into `What shipped` (deduplicated against commit-derived bullets).
 
+## Short preset behavior
+
+- `--preset short` defaults to tighter bullet budgets and omits `Validation`.
+- It also filters common low-signal release/admin commits by default.
+- Use `--keep-low-signal` to disable that filter.
+
 ## Examples
 
 ```bash
@@ -49,5 +56,6 @@ ship-note draft --include-scope api --exclude-scope general --group-by scope
 ship-note draft --preset short --group-by scope --title-template "# {repo} release notes"
 ship-note draft --group-by scope --title-template "# {repo} release notes" --no-validation
 ship-note draft --preset short --max-bullets 3 --max-changelog-items 2
+ship-note draft --preset short --keep-low-signal
 ship-note draft --output notes/devlog-draft.md
 ```

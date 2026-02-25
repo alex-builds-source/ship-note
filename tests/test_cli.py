@@ -10,6 +10,7 @@ from ship_note.cli import (
     collect_commits,
     extract_changelog_items,
     filter_commits,
+    filter_low_signal_commits,
     render_draft,
     resolve_range,
 )
@@ -136,6 +137,7 @@ def test_cmd_draft_writes_output_file(tmp_path: Path):
         title_template=None,
         no_validation=False,
         no_links=False,
+        keep_low_signal=False,
         max_bullets=None,
         max_changelog_items=None,
         output="out/devlog.md",
@@ -171,6 +173,7 @@ def test_cmd_draft_short_preset_omits_validation_and_uses_short_title(tmp_path: 
         title_template=None,
         no_validation=False,
         no_links=False,
+        keep_low_signal=False,
         max_bullets=None,
         max_changelog_items=None,
         output="out/short.md",
@@ -180,6 +183,16 @@ def test_cmd_draft_short_preset_omits_validation_and_uses_short_title(tmp_path: 
     text = (repo / "out" / "short.md").read_text(encoding="utf-8")
     assert "# repo update" in text
     assert "## Validation" not in text
+
+
+def test_filter_low_signal_commits_drops_release_admin_noise():
+    commits = [
+        Commit(sha="1", subject="feat: add parser"),
+        Commit(sha="2", subject="docs: publish v0.1.0 devlog"),
+        Commit(sha="3", subject="chore: prepare v0.1.4 release notes and version"),
+    ]
+    filtered = filter_low_signal_commits(commits)
+    assert [c.sha for c in filtered] == ["1"]
 
 
 def test_filter_commits_include_exclude_types():

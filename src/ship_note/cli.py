@@ -177,6 +177,20 @@ def filter_commits(
     return out
 
 
+def _is_low_signal_subject(subject: str) -> bool:
+    s = subject.strip().lower()
+    return (
+        (s.startswith("docs:") and "devlog" in s)
+        or (s.startswith("chore:") and "release" in s)
+        or (s.startswith("chore:") and "version" in s)
+    )
+
+
+def filter_low_signal_commits(commits: list[Commit]) -> list[Commit]:
+    out = [c for c in commits if not _is_low_signal_subject(c.subject)]
+    return out or commits
+
+
 def render_draft(
     *,
     repo_name: str,
@@ -318,6 +332,9 @@ def cmd_draft(args: argparse.Namespace) -> int:
     if preset not in {"short", "standard"}:
         raise ValueError("preset must be one of: short, standard")
 
+    if preset == "short" and not args.keep_low_signal:
+        commits = filter_low_signal_commits(commits)
+
     default_title_template = "# {repo} update" if preset == "short" else "# {repo} devlog draft"
     default_include_validation = preset != "short"
     default_max_bullets = 4 if preset == "short" else 12
@@ -402,6 +419,7 @@ def build_parser() -> argparse.ArgumentParser:
     draft.add_argument("--group-by", choices=["type", "scope"], default="type", help="Group commit bullets by type or scope")
     draft.add_argument("--max-bullets", type=int, help="Cap bullet lines in What shipped")
     draft.add_argument("--max-changelog-items", type=int, help="Cap changelog bullets considered for enrichment")
+    draft.add_argument("--keep-low-signal", action="store_true", help="In short preset, keep low-signal release/admin commits")
     draft.add_argument("--title-template", help="Title template, supports {repo} placeholder")
     draft.add_argument("--no-validation", action="store_true", help="Skip Validation section")
     draft.add_argument("--no-links", action="store_true", help="Skip Links section")
