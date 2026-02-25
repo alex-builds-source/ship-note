@@ -185,6 +185,74 @@ def test_cmd_draft_short_preset_omits_validation_and_uses_short_title(tmp_path: 
     assert "## Validation" not in text
 
 
+def test_cmd_draft_short_drops_low_signal_when_changelog_exists(tmp_path: Path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    _write(repo, "README.md", "x\n")
+    _write(repo, "CHANGELOG.md", "# Changelog\n\n## [0.2.0]\n- Added parser improvements\n")
+    _commit_all(repo, "docs: publish v0.1.0 devlog")
+
+    args = argparse.Namespace(
+        path=str(repo),
+        since_tag=None,
+        since_commit=None,
+        repo_url=None,
+        release_url=None,
+        include_type=None,
+        exclude_type=None,
+        include_scope=None,
+        exclude_scope=None,
+        preset="short",
+        group_by="type",
+        title_template=None,
+        no_validation=False,
+        no_links=False,
+        keep_low_signal=False,
+        max_bullets=None,
+        max_changelog_items=None,
+        output="out/short.md",
+    )
+    rc = cmd_draft(args)
+    assert rc == 0
+    text = (repo / "out" / "short.md").read_text(encoding="utf-8")
+    assert "Added parser improvements" in text
+    assert "publish v0.1.0 devlog" not in text
+
+
+def test_cmd_draft_short_keeps_low_signal_when_no_changelog(tmp_path: Path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    _write(repo, "README.md", "x\n")
+    _commit_all(repo, "docs: publish v0.1.0 devlog")
+
+    args = argparse.Namespace(
+        path=str(repo),
+        since_tag=None,
+        since_commit=None,
+        repo_url=None,
+        release_url=None,
+        include_type=None,
+        exclude_type=None,
+        include_scope=None,
+        exclude_scope=None,
+        preset="short",
+        group_by="type",
+        title_template=None,
+        no_validation=False,
+        no_links=False,
+        keep_low_signal=False,
+        max_bullets=None,
+        max_changelog_items=None,
+        output="out/short.md",
+    )
+    rc = cmd_draft(args)
+    assert rc == 0
+    text = (repo / "out" / "short.md").read_text(encoding="utf-8")
+    assert "publish v0.1.0 devlog" in text
+
+
 def test_filter_low_signal_commits_drops_release_admin_noise():
     commits = [
         Commit(sha="1", subject="feat: add parser"),

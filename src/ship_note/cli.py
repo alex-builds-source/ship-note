@@ -187,8 +187,7 @@ def _is_low_signal_subject(subject: str) -> bool:
 
 
 def filter_low_signal_commits(commits: list[Commit]) -> list[Commit]:
-    out = [c for c in commits if not _is_low_signal_subject(c.subject)]
-    return out or commits
+    return [c for c in commits if not _is_low_signal_subject(c.subject)]
 
 
 def render_draft(
@@ -332,9 +331,6 @@ def cmd_draft(args: argparse.Namespace) -> int:
     if preset not in {"short", "standard"}:
         raise ValueError("preset must be one of: short, standard")
 
-    if preset == "short" and not args.keep_low_signal:
-        commits = filter_low_signal_commits(commits)
-
     default_title_template = "# {repo} update" if preset == "short" else "# {repo} devlog draft"
     default_include_validation = preset != "short"
     default_max_bullets = 4 if preset == "short" else 12
@@ -350,6 +346,15 @@ def cmd_draft(args: argparse.Namespace) -> int:
         raise ValueError("max_changelog_items must be > 0")
 
     changelog_items = extract_changelog_items(repo_path, max_items=max_changelog_items)
+
+    if preset == "short" and not args.keep_low_signal:
+        filtered = filter_low_signal_commits(commits)
+        if filtered:
+            commits = filtered
+        elif changelog_items:
+            # prefer changelog signal over low-signal commit noise
+            commits = []
+        # else: keep original commits so output is not empty when no changelog exists
 
     repo_name = repo_path.name
     output = render_draft(

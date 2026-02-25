@@ -43,6 +43,7 @@ Render a markdown devlog draft from git commit history, optionally enriched with
 - `--preset short` defaults to tighter bullet budgets and omits `Validation`.
 - It also filters common low-signal release/admin commits by default.
 - Use `--keep-low-signal` to disable that filter.
+- If filtering would remove all commits and no changelog bullets exist, commit bullets are kept to avoid an empty draft.
 
 ## Examples
 
