@@ -96,10 +96,9 @@ def extract_changelog_items(path: Path, *, max_items: int = 6) -> list[str]:
 
     out: list[str] = []
     for line in scan:
-        s = line.strip()
-        if not s.startswith("- "):
+        if not line.startswith("- "):
             continue
-        item = s[2:].strip()
+        item = line[2:].strip()
         if not item:
             continue
         out.append(item)

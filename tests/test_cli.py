@@ -106,10 +106,10 @@ def test_extract_changelog_items(tmp_path: Path):
     _write(
         repo,
         "CHANGELOG.md",
-        "# Changelog\n\n## [0.2.0]\n- Added new parser\n\n## [0.1.0]\n- Added draft command\n- Added tests\n",
+        "# Changelog\n\n## [0.2.0]\n- Added new parser\n  - nested detail should be ignored\n- Added docs\n\n## [0.1.0]\n- Added draft command\n- Added tests\n",
     )
     items = extract_changelog_items(repo)
-    assert items == ["Added new parser"]
+    assert items == ["Added new parser", "Added docs"]
 
 
 def test_cmd_draft_writes_output_file(tmp_path: Path):

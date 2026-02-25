@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.2] - 2026-02-25
+### Added
+- Scope filters for draft generation:
+  - `--include-scope` (repeatable)
+  - `--exclude-scope` (repeatable)
+
+### Changed
+- Changelog enrichment now uses bullets from the latest `##` section, with fallback to top-level bullets when no sections exist.
+- Nested changelog bullets are ignored to reduce noisy/duplicated output.
+- Expanded tests and docs for scope filtering + changelog section behavior (`9 passed`).
+
 ## [0.1.1] - 2026-02-25
 ### Added
 - Commit-type filtering for draft generation:
