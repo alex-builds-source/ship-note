@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import argparse
 import subprocess
 from pathlib import Path
 
-from ship_note.cli import collect_commits, render_draft, resolve_range
+from ship_note.cli import cmd_draft, collect_commits, extract_changelog_items, render_draft, resolve_range
 
 
 def _run(cmd: list[str], cwd: Path) -> None:
@@ -59,6 +60,7 @@ def test_collect_commits_and_render(tmp_path: Path):
     draft = render_draft(
         repo_name="demo",
         commits=commits,
+        changelog_items=["Added smoke coverage"],
         base_ref="HEAD~1",
         target_ref="HEAD",
         repo_url="https://example.com/repo",
@@ -66,6 +68,7 @@ def test_collect_commits_and_render(tmp_path: Path):
     )
     assert "# demo devlog draft" in draft
     assert "- patch bug" in draft
+    assert "- Added smoke coverage" in draft
     assert "## Links" in draft
     assert "https://example.com/repo" in draft
 
@@ -83,3 +86,40 @@ def test_resolve_range_rejects_both_flags(tmp_path: Path):
         assert "only one" in str(e).lower()
     else:
         raise AssertionError("Expected ValueError")
+
+
+def test_extract_changelog_items(tmp_path: Path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [0.1.0]\n- Added draft command\n- Added tests\n",
+    )
+    items = extract_changelog_items(repo)
+    assert items == ["Added draft command", "Added tests"]
+
+
+def test_cmd_draft_writes_output_file(tmp_path: Path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    _write(repo, "README.md", "x\n")
+    _write(repo, "CHANGELOG.md", "# Changelog\n\n- Added draft support\n")
+    _commit_all(repo, "feat: init")
+
+    args = argparse.Namespace(
+        path=str(repo),
+        since_tag=None,
+        since_commit=None,
+        repo_url=None,
+        release_url=None,
+        output="out/devlog.md",
+    )
+    rc = cmd_draft(args)
+    assert rc == 0
+    out = repo / "out" / "devlog.md"
+    assert out.exists()
+    text = out.read_text(encoding="utf-8")
+    assert "devlog draft" in text
+    assert "Added draft support" in text

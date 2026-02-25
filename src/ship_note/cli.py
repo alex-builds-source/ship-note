@@ -70,6 +70,26 @@ def collect_commits(path: Path, *, range_spec: str) -> list[Commit]:
     return commits
 
 
+def extract_changelog_items(path: Path, *, max_items: int = 6) -> list[str]:
+    changelog = path / "CHANGELOG.md"
+    if not changelog.exists():
+        return []
+
+    lines = changelog.read_text(encoding="utf-8").splitlines()
+    out: list[str] = []
+    for line in lines:
+        s = line.strip()
+        if not s.startswith("- "):
+            continue
+        item = s[2:].strip()
+        if not item:
+            continue
+        out.append(item)
+        if len(out) >= max_items:
+            break
+    return out
+
+
 def _normalize_subject(subject: str) -> str:
     normalized = re.sub(r"^(feat|fix|docs|refactor|test|chore)(\([^)]*\))?!?:\s*", "", subject, flags=re.IGNORECASE)
     normalized = normalized.strip()
@@ -91,25 +111,33 @@ def render_draft(
     *,
     repo_name: str,
     commits: list[Commit],
+    changelog_items: list[str],
     base_ref: str,
     target_ref: str,
     repo_url: str | None,
     release_url: str | None,
 ) -> str:
+    bullets: list[str] = []
+
     if commits:
         grouped: dict[str, list[str]] = {"features": [], "fixes": [], "docs": [], "other": []}
         for c in commits:
             grouped[_bucket_for_subject(c.subject)].append(_normalize_subject(c.subject))
 
-        bullets: list[str] = []
         for key in ("features", "fixes", "docs", "other"):
             for item in grouped[key]:
                 bullets.append(f"- {item}")
 
-        what_shipped = "\n".join(bullets[:8])
-        why = f"- Captures {len(commits)} commit(s) from `{base_ref or 'start'}..{target_ref}` into a publish-ready summary."
+    for item in changelog_items:
+        b = f"- {item}"
+        if b not in bullets:
+            bullets.append(b)
+
+    if bullets:
+        what_shipped = "\n".join(bullets[:10])
+        why = f"- Captures {len(commits)} commit(s) from `{base_ref or 'start'}..{target_ref}` with changelog context when available."
     else:
-        what_shipped = "- No commits found for selected range."
+        what_shipped = "- No commits or changelog bullets found for selected range."
         why = "- Helps keep release communication consistent even when no code changes are detected."
 
     links: list[str] = []
@@ -152,16 +180,28 @@ def cmd_draft(args: argparse.Namespace) -> int:
         since_commit=args.since_commit,
     )
     commits = collect_commits(repo_path, range_spec=range_spec)
+    changelog_items = extract_changelog_items(repo_path)
 
     repo_name = repo_path.name
     output = render_draft(
         repo_name=repo_name,
         commits=commits,
+        changelog_items=changelog_items,
         base_ref=base_ref,
         target_ref=target_ref,
         repo_url=args.repo_url,
         release_url=args.release_url,
     )
+
+    if args.output:
+        out_path = Path(args.output)
+        if not out_path.is_absolute():
+            out_path = repo_path / out_path
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(output, encoding="utf-8")
+        print(f"Wrote draft: {out_path}")
+        return 0
+
     print(output, end="")
     return 0
 
@@ -176,6 +216,7 @@ def build_parser() -> argparse.ArgumentParser:
     draft.add_argument("--since-commit", help="Base range from the specified commit sha/ref")
     draft.add_argument("--repo-url", help="Repository URL for links section")
     draft.add_argument("--release-url", help="Release URL for links section")
+    draft.add_argument("--output", help="Write markdown output to a file")
     draft.set_defaults(func=cmd_draft)
 
     return parser

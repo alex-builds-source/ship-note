@@ -4,7 +4,7 @@
 
 `ship-note draft`
 
-Render a markdown devlog draft from git commit history.
+Render a markdown devlog draft from git commit history, optionally enriched with `CHANGELOG.md` bullets.
 
 ## Options
 
@@ -13,6 +13,7 @@ Render a markdown devlog draft from git commit history.
 - `--since-commit <ref>`: base commit range from commit/ref
 - `--repo-url <url>`: include repository URL in links section
 - `--release-url <url>`: include release URL in links section
+- `--output <path>`: write rendered markdown to file instead of stdout
 
 ## Range behavior
 
@@ -21,6 +22,10 @@ Render a markdown devlog draft from git commit history.
 - Else if a tag exists, range is `<latest-tag>..HEAD`
 - Else fallback is `HEAD` (all reachable commits)
 
+## Changelog behavior
+
+- If `CHANGELOG.md` exists, top bullet items are merged into `What shipped` (deduplicated against commit-derived bullets).
+
 ## Examples
 
 ```bash
@@ -28,4 +33,5 @@ ship-note draft
 ship-note draft --since-tag v0.1.0
 ship-note draft --since-commit 8f2c2a1
 ship-note draft --repo-url https://github.com/org/repo --release-url https://github.com/org/repo/releases/tag/v0.2.0
+ship-note draft --output notes/devlog-draft.md
 ```
