@@ -13,6 +13,8 @@ Render a markdown devlog draft from git commit history, optionally enriched with
 - `--since-commit <ref>`: base commit range from commit/ref
 - `--repo-url <url>`: include repository URL in links section
 - `--release-url <url>`: include release URL in links section
+- `--include-type <type>`: only include commit types (repeatable)
+- `--exclude-type <type>`: exclude commit types (repeatable)
 - `--output <path>`: write rendered markdown to file instead of stdout
 
 ## Range behavior
@@ -33,5 +35,6 @@ ship-note draft
 ship-note draft --since-tag v0.1.0
 ship-note draft --since-commit 8f2c2a1
 ship-note draft --repo-url https://github.com/org/repo --release-url https://github.com/org/repo/releases/tag/v0.2.0
+ship-note draft --include-type feat --include-type fix --exclude-type docs
 ship-note draft --output notes/devlog-draft.md
 ```

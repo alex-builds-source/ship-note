@@ -96,15 +96,43 @@ def _normalize_subject(subject: str) -> str:
     return normalized or subject
 
 
-def _bucket_for_subject(subject: str) -> str:
+def _commit_type(subject: str) -> str:
     lower = subject.lower()
-    if lower.startswith("feat"):
+    for kind in ("feat", "fix", "docs", "refactor", "test", "chore"):
+        if lower.startswith(kind):
+            return kind
+    return "other"
+
+
+def _bucket_for_subject(subject: str) -> str:
+    commit_type = _commit_type(subject)
+    if commit_type == "feat":
         return "features"
-    if lower.startswith("fix"):
+    if commit_type == "fix":
         return "fixes"
-    if lower.startswith("docs"):
+    if commit_type == "docs":
         return "docs"
     return "other"
+
+
+def filter_commits(
+    commits: list[Commit],
+    *,
+    include_types: set[str] | None,
+    exclude_types: set[str] | None,
+) -> list[Commit]:
+    include = include_types or set()
+    exclude = exclude_types or set()
+
+    out: list[Commit] = []
+    for c in commits:
+        ctype = _commit_type(c.subject)
+        if include and ctype not in include:
+            continue
+        if ctype in exclude:
+            continue
+        out.append(c)
+    return out
 
 
 def render_draft(
@@ -180,6 +208,15 @@ def cmd_draft(args: argparse.Namespace) -> int:
         since_commit=args.since_commit,
     )
     commits = collect_commits(repo_path, range_spec=range_spec)
+
+    include_types = set(args.include_type or [])
+    exclude_types = set(args.exclude_type or [])
+    allowed_types = {"feat", "fix", "docs", "refactor", "test", "chore", "other"}
+    unknown = sorted((include_types | exclude_types) - allowed_types)
+    if unknown:
+        raise ValueError(f"Unknown commit types: {', '.join(unknown)}")
+
+    commits = filter_commits(commits, include_types=include_types, exclude_types=exclude_types)
     changelog_items = extract_changelog_items(repo_path)
 
     repo_name = repo_path.name
@@ -216,6 +253,16 @@ def build_parser() -> argparse.ArgumentParser:
     draft.add_argument("--since-commit", help="Base range from the specified commit sha/ref")
     draft.add_argument("--repo-url", help="Repository URL for links section")
     draft.add_argument("--release-url", help="Release URL for links section")
+    draft.add_argument(
+        "--include-type",
+        action="append",
+        help="Only include commits with this type (repeatable: feat|fix|docs|refactor|test|chore|other)",
+    )
+    draft.add_argument(
+        "--exclude-type",
+        action="append",
+        help="Exclude commits with this type (repeatable: feat|fix|docs|refactor|test|chore|other)",
+    )
     draft.add_argument("--output", help="Write markdown output to a file")
     draft.set_defaults(func=cmd_draft)
 

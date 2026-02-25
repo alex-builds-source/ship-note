@@ -4,7 +4,15 @@ import argparse
 import subprocess
 from pathlib import Path
 
-from ship_note.cli import cmd_draft, collect_commits, extract_changelog_items, render_draft, resolve_range
+from ship_note.cli import (
+    Commit,
+    cmd_draft,
+    collect_commits,
+    extract_changelog_items,
+    filter_commits,
+    render_draft,
+    resolve_range,
+)
 
 
 def _run(cmd: list[str], cwd: Path) -> None:
@@ -114,6 +122,8 @@ def test_cmd_draft_writes_output_file(tmp_path: Path):
         since_commit=None,
         repo_url=None,
         release_url=None,
+        include_type=None,
+        exclude_type=None,
         output="out/devlog.md",
     )
     rc = cmd_draft(args)
@@ -123,3 +133,17 @@ def test_cmd_draft_writes_output_file(tmp_path: Path):
     text = out.read_text(encoding="utf-8")
     assert "devlog draft" in text
     assert "Added draft support" in text
+
+
+def test_filter_commits_include_exclude_types():
+    commits = [
+        Commit(sha="1", subject="feat: add CLI"),
+        Commit(sha="2", subject="fix: patch bug"),
+        Commit(sha="3", subject="docs: update readme"),
+    ]
+
+    only_feat = filter_commits(commits, include_types={"feat"}, exclude_types=None)
+    assert [c.sha for c in only_feat] == ["1"]
+
+    no_docs = filter_commits(commits, include_types=None, exclude_types={"docs"})
+    assert [c.sha for c in no_docs] == ["1", "2"]
