@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Generate concise release/devlog drafts from git history and changelog"
 readme = "README.md"
 requires-python = ">=3.10"
-authors = [{ name = "TODO" }]
+authors = [{ name = "Alex Builds Source" }]
 license = { text = "MIT" }
 
 [project.scripts]
