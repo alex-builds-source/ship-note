@@ -18,6 +18,7 @@ Render a markdown devlog draft from git commit history, optionally enriched with
 - `--include-scope <scope>`: only include commit scopes (repeatable, use `general` for unscoped commits)
 - `--exclude-scope <scope>`: exclude commit scopes (repeatable, use `general` for unscoped commits)
 - `--preset <short|standard>`: output style preset (`short` for concise updates, `standard` for fuller notes)
+- `--destination <release|update|social|internal>`: destination tone/template hint
 - `--group-by <type|scope>`: group commit bullets by type or conventional-commit scope
 - `--max-bullets <n>`: cap bullet lines in `What shipped`
 - `--max-changelog-items <n>`: cap changelog bullets used for enrichment
@@ -71,6 +72,7 @@ ship-note draft --include-scope api --exclude-scope general --group-by scope
 ship-note draft --preset short --group-by scope --title-template "# {repo} release notes"
 ship-note draft --group-by scope --title-template "# {repo} release notes" --no-validation
 ship-note draft --preset short --max-bullets 3 --max-changelog-items 2
+ship-note draft --preset short --destination social
 ship-note draft --preset short --keep-low-signal
 ship-note draft --json
 ship-note draft --json --output notes/devlog-draft.json

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.10] - 2026-02-26
+### Added
+- Structured JSON output mode (`--json`) for agent/tool consumption.
+- Destination selector (`--destination release|update|social|internal`) to tune draft tone/templates.
+
+### Changed
+- Structured payload now includes destination in `options` for cross-surface parity.
+- Improved `Why it matters` phrasing to be clearer and less placeholder-like.
+- Updated README/CLI docs and tests for structured output + destination behavior.
+
 ## [0.1.9] - 2026-02-25
 ### Changed
 - Expanded short-preset low-signal filtering heuristics to suppress common release-maintenance noise:

@@ -482,6 +482,7 @@ def test_cmd_draft_json_emits_structured_payload(tmp_path: Path):
         include_scope=None,
         exclude_scope=None,
         preset="standard",
+        destination="social",
         group_by="type",
         title_template=None,
         no_validation=False,
@@ -501,6 +502,7 @@ def test_cmd_draft_json_emits_structured_payload(tmp_path: Path):
     assert payload["repo"]["name"] == "repo"
     assert payload["range"]["target_ref"] == "HEAD"
     assert payload["options"]["preset"] == "standard"
+    assert payload["options"]["destination"] == "social"
     assert isinstance(payload["items"], list) and payload["items"]
     assert "markdown" in payload and "## What shipped" in payload["markdown"]
 

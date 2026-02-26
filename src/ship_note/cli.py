@@ -204,6 +204,24 @@ def filter_low_signal_commits(commits: list[Commit]) -> list[Commit]:
     return [c for c in commits if not _is_low_signal_subject(c.subject)]
 
 
+def _default_title_template(*, preset: str, destination: str) -> str:
+    short = preset == "short"
+    if short:
+        if destination == "social":
+            return "# {repo} social update"
+        if destination == "internal":
+            return "# {repo} internal update"
+        return "# {repo} update"
+
+    if destination == "social":
+        return "# {repo} social draft"
+    if destination == "internal":
+        return "# {repo} internal release brief"
+    if destination == "update":
+        return "# {repo} update draft"
+    return "# {repo} devlog draft"
+
+
 def _build_why_lines(
     *,
     base_ref: str,
@@ -428,6 +446,7 @@ def build_structured_payload(
     target_ref: str,
     range_spec: str,
     preset: str,
+    destination: str,
     group_by: str,
     commits: list[Commit],
     changelog_items: list[str],
@@ -445,6 +464,7 @@ def build_structured_payload(
         },
         "options": {
             "preset": preset,
+            "destination": destination,
             "group_by": group_by,
         },
         "stats": {
@@ -535,7 +555,11 @@ def cmd_draft(args: argparse.Namespace) -> int:
     if preset not in {"short", "standard"}:
         raise ValueError("preset must be one of: short, standard")
 
-    default_title_template = "# {repo} update" if preset == "short" else "# {repo} devlog draft"
+    destination = getattr(args, "destination", None) or "release"
+    if destination not in {"release", "update", "social", "internal"}:
+        raise ValueError("destination must be one of: release, update, social, internal")
+
+    default_title_template = _default_title_template(preset=preset, destination=destination)
     default_include_validation = preset != "short"
     default_max_bullets = 4 if preset == "short" else 12
     default_max_changelog_items = 4 if preset == "short" else 6
@@ -594,6 +618,7 @@ def cmd_draft(args: argparse.Namespace) -> int:
             target_ref=target_ref,
             range_spec=range_spec,
             preset=preset,
+            destination=destination,
             group_by=group_by,
             commits=commits,
             changelog_items=changelog_items,
@@ -652,6 +677,12 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["short", "standard"],
         default="standard",
         help="Output preset: short is concise for chat updates; standard is fuller release notes",
+    )
+    draft.add_argument(
+        "--destination",
+        choices=["release", "update", "social", "internal"],
+        default="release",
+        help="Destination tone/template hint for generated title and rationale",
     )
     draft.add_argument("--group-by", choices=["type", "scope"], default="type", help="Group commit bullets by type or scope")
     draft.add_argument("--max-bullets", type=int, help="Cap bullet lines in What shipped")
