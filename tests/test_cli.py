@@ -524,3 +524,77 @@ def test_render_draft_why_section_is_not_placeholder_wording():
     )
     assert "with changelog context when available" not in draft
     assert "Covers `v0.1.0..v0.1.1`" in draft
+
+
+def test_cmd_draft_omits_why_by_default(tmp_path: Path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    _write(repo, "README.md", "x\n")
+    _commit_all(repo, "feat: add parser")
+
+    args = argparse.Namespace(
+        path=str(repo),
+        since_tag=None,
+        since_commit=None,
+        repo_url=None,
+        release_url=None,
+        include_type=None,
+        exclude_type=None,
+        include_scope=None,
+        exclude_scope=None,
+        preset="standard",
+        destination="release",
+        group_by="type",
+        title_template=None,
+        no_validation=False,
+        no_links=False,
+        with_why=False,
+        keep_low_signal=False,
+        max_bullets=None,
+        max_changelog_items=None,
+        json=False,
+        output="out/draft.md",
+    )
+    rc = cmd_draft(args)
+    assert rc == 0
+
+    text = (repo / "out" / "draft.md").read_text(encoding="utf-8")
+    assert "## Why it matters" not in text
+
+
+def test_cmd_draft_with_why_includes_section(tmp_path: Path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    _write(repo, "README.md", "x\n")
+    _commit_all(repo, "feat: add parser")
+
+    args = argparse.Namespace(
+        path=str(repo),
+        since_tag=None,
+        since_commit=None,
+        repo_url=None,
+        release_url=None,
+        include_type=None,
+        exclude_type=None,
+        include_scope=None,
+        exclude_scope=None,
+        preset="standard",
+        destination="internal",
+        group_by="type",
+        title_template=None,
+        no_validation=False,
+        no_links=False,
+        with_why=True,
+        keep_low_signal=False,
+        max_bullets=None,
+        max_changelog_items=None,
+        json=False,
+        output="out/draft.md",
+    )
+    rc = cmd_draft(args)
+    assert rc == 0
+
+    text = (repo / "out" / "draft.md").read_text(encoding="utf-8")
+    assert "## Why it matters" in text

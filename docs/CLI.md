@@ -26,6 +26,7 @@ Render a markdown devlog draft from git commit history, optionally enriched with
 - `--title-template <text>`: customize title (supports `{repo}` placeholder)
 - `--no-validation`: skip Validation section
 - `--no-links`: skip Links section
+- `--with-why`: include `Why it matters` section (off by default)
 - `--json`: emit structured JSON payload (includes rendered markdown)
 - `--output <path>`: write output to file (markdown by default, JSON with `--json`)
 
@@ -74,6 +75,7 @@ ship-note draft --group-by scope --title-template "# {repo} release notes" --no-
 ship-note draft --preset short --max-bullets 3 --max-changelog-items 2
 ship-note draft --preset short --destination social
 ship-note draft --preset short --keep-low-signal
+ship-note draft --with-why --destination internal
 ship-note draft --json
 ship-note draft --json --output notes/devlog-draft.json
 ship-note draft --output notes/devlog-draft.md

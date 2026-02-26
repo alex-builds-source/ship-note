@@ -17,6 +17,7 @@ ship-note draft --since-commit HEAD~5
 ship-note draft --preset short --group-by scope
 ship-note draft --preset short --destination social
 ship-note draft --preset short --max-bullets 3 --max-changelog-items 2
+ship-note draft --with-why --destination internal
 ship-note draft --json
 ship-note draft --output notes/devlog-draft.md
 ```
@@ -26,9 +27,11 @@ ship-note draft --output notes/devlog-draft.md
 By default: deterministic markdown sections:
 - Title
 - What shipped (commit-derived bullets + optional CHANGELOG bullets)
-- Why it matters
 - Validation
 - Links
+
+Optional section:
+- Why it matters (`--with-why`)
 
 Optional: structured JSON payload (`--json`) for agents/tools, including:
 - schema/version metadata

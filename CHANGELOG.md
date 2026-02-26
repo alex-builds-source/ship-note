@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.11] - 2026-02-26
+### Added
+- `--with-why` flag to include `Why it matters` only when explicitly requested.
+
+### Changed
+- `Why it matters` is no longer included by default in markdown output.
+- Preserved structured payload compatibility by returning `sections.why_it_matters` as an empty list when omitted.
+- Expanded tests for default omission vs explicit inclusion behavior.
+
 ## [0.1.10] - 2026-02-26
 ### Added
 - Structured JSON output mode (`--json`) for agent/tool consumption.

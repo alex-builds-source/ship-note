@@ -259,6 +259,7 @@ def _build_render_data(
     title_template: str,
     include_validation: bool,
     include_links: bool,
+    include_why: bool,
     max_bullets: int,
 ) -> dict[str, object]:
     bullet_rows: list[tuple[str, str]] = []  # (line, source) where source in {commit,changelog,header}
@@ -339,6 +340,7 @@ def _build_render_data(
         "title": title,
         "what_shipped_lines": what_shipped_lines,
         "why_lines": why_lines,
+        "include_why": include_why,
         "include_validation": include_validation,
         "include_links": include_links,
         "links": links,
@@ -357,10 +359,14 @@ def _render_markdown_from_data(data: dict[str, object]) -> str:
         "## What shipped",
         "\n".join(data["what_shipped_lines"]),
         "",
-        "## Why it matters",
-        "\n".join(data["why_lines"]),
-        "",
     ]
+
+    if bool(data.get("include_why", True)):
+        out.extend([
+            "## Why it matters",
+            "\n".join(data["why_lines"]),
+            "",
+        ])
 
     if bool(data["include_validation"]):
         out.extend([
@@ -475,7 +481,7 @@ def build_structured_payload(
         "sections": {
             "title": render_data["title"],
             "what_shipped": render_data["what_shipped_lines"],
-            "why_it_matters": render_data["why_lines"],
+            "why_it_matters": (render_data["why_lines"] if bool(render_data.get("include_why", True)) else []),
             "links": render_data["links"],
         },
         "items": _build_structured_items(
@@ -514,6 +520,7 @@ def render_draft(
         title_template=title_template,
         include_validation=include_validation,
         include_links=include_links,
+        include_why=True,
         max_bullets=max_bullets,
     )
     return _render_markdown_from_data(data)
@@ -605,6 +612,7 @@ def cmd_draft(args: argparse.Namespace) -> int:
         title_template=args.title_template or default_title_template,
         include_validation=default_include_validation and (not args.no_validation),
         include_links=not args.no_links,
+        include_why=bool(getattr(args, "with_why", False)),
         max_bullets=max_bullets,
     )
     markdown = _render_markdown_from_data(render_data)
@@ -691,6 +699,7 @@ def build_parser() -> argparse.ArgumentParser:
     draft.add_argument("--title-template", help="Title template, supports {repo} placeholder")
     draft.add_argument("--no-validation", action="store_true", help="Skip Validation section")
     draft.add_argument("--no-links", action="store_true", help="Skip Links section")
+    draft.add_argument("--with-why", action="store_true", help="Include Why it matters section (off by default)")
     draft.add_argument("--json", action="store_true", help="Emit structured JSON payload (includes markdown)")
     draft.add_argument("--output", help="Write output to a file (markdown by default, JSON with --json)")
     draft.set_defaults(func=cmd_draft)
