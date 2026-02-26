@@ -25,7 +25,8 @@ Render a markdown devlog draft from git commit history, optionally enriched with
 - `--title-template <text>`: customize title (supports `{repo}` placeholder)
 - `--no-validation`: skip Validation section
 - `--no-links`: skip Links section
-- `--output <path>`: write rendered markdown to file instead of stdout
+- `--json`: emit structured JSON payload (includes rendered markdown)
+- `--output <path>`: write output to file (markdown by default, JSON with `--json`)
 
 ## Range behavior
 
@@ -47,6 +48,17 @@ Render a markdown devlog draft from git commit history, optionally enriched with
 - If all in-range commits are filtered as low-signal, changelog carryover is suppressed to avoid stale summaries.
 - If filtering would remove all commits and no changelog bullets exist, commit bullets are kept to avoid an empty draft.
 
+## Structured output (`--json`)
+
+Use `--json` to emit a stable machine-consumable payload for agents/tools.
+The payload includes:
+- `schema_version`
+- `repo` + `range`
+- `options` + `stats`
+- `sections` (title / what_shipped / why_it_matters / links)
+- `items` (commit/changelog-derived normalized entries)
+- `markdown` (rendered draft)
+
 ## Examples
 
 ```bash
@@ -60,5 +72,7 @@ ship-note draft --preset short --group-by scope --title-template "# {repo} relea
 ship-note draft --group-by scope --title-template "# {repo} release notes" --no-validation
 ship-note draft --preset short --max-bullets 3 --max-changelog-items 2
 ship-note draft --preset short --keep-low-signal
+ship-note draft --json
+ship-note draft --json --output notes/devlog-draft.json
 ship-note draft --output notes/devlog-draft.md
 ```

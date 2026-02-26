@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 from dataclasses import dataclass
@@ -203,7 +204,31 @@ def filter_low_signal_commits(commits: list[Commit]) -> list[Commit]:
     return [c for c in commits if not _is_low_signal_subject(c.subject)]
 
 
-def render_draft(
+def _build_why_lines(
+    *,
+    base_ref: str,
+    target_ref: str,
+    raw_commit_count: int,
+    commit_items_used: int,
+    changelog_items_used: int,
+    has_content: bool,
+) -> list[str]:
+    range_label = f"{base_ref or 'start'}..{target_ref}"
+
+    if not has_content:
+        return ["- No substantive draft items were found for the selected range; this may be a no-change or maintenance-only release."]
+
+    lines = [f"- Covers `{range_label}` using {commit_items_used} distilled bullet(s) from {raw_commit_count} commit(s)."]
+
+    if changelog_items_used > 0:
+        lines.append(f"- Adds {changelog_items_used} changelog bullet(s) to fill context that commit subjects alone may miss.")
+    else:
+        lines.append("- Keeps the summary focused on commit-level changes for faster release communication.")
+
+    return lines
+
+
+def _build_render_data(
     *,
     repo_name: str,
     commits: list[Commit],
@@ -217,8 +242,8 @@ def render_draft(
     include_validation: bool,
     include_links: bool,
     max_bullets: int,
-) -> str:
-    bullets: list[str] = []
+) -> dict[str, object]:
+    bullet_rows: list[tuple[str, str]] = []  # (line, source) where source in {commit,changelog,header}
     seen_items: set[str] = set()
 
     if commits:
@@ -240,9 +265,9 @@ def render_draft(
                 if not scope_items:
                     continue
 
-                bullets.append(f"- [{scope}]")
+                bullet_rows.append((f"- [{scope}]", "header"))
                 for item in scope_items:
-                    bullets.append(f"  - {item}")
+                    bullet_rows.append((f"  - {item}", "commit"))
         else:
             grouped: dict[str, list[str]] = {"features": [], "fixes": [], "docs": [], "other": []}
             for c in commits:
@@ -254,21 +279,33 @@ def render_draft(
                     if not canon or canon in seen_items:
                         continue
                     seen_items.add(canon)
-                    bullets.append(f"- {item}")
+                    bullet_rows.append((f"- {item}", "commit"))
 
     for item in changelog_items:
         canon = _canonical_item(item)
         if not canon or canon in seen_items:
             continue
         seen_items.add(canon)
-        bullets.append(f"- {item}")
+        bullet_rows.append((f"- {item}", "changelog"))
 
-    if bullets:
-        what_shipped = "\n".join(bullets[:max_bullets])
-        why = f"- Captures {len(commits)} commit(s) from `{base_ref or 'start'}..{target_ref}` with changelog context when available."
+    selected_rows = bullet_rows[:max_bullets]
+    selected_lines = [line for line, _ in selected_rows]
+    commit_items_used = sum(1 for _, src in selected_rows if src == "commit")
+    changelog_items_used = sum(1 for _, src in selected_rows if src == "changelog")
+
+    if selected_lines:
+        what_shipped_lines = selected_lines
     else:
-        what_shipped = "- No commits or changelog bullets found for selected range."
-        why = "- Helps keep release communication consistent even when no code changes are detected."
+        what_shipped_lines = ["- No commits or changelog bullets found for selected range."]
+
+    why_lines = _build_why_lines(
+        base_ref=base_ref,
+        target_ref=target_ref,
+        raw_commit_count=len(commits),
+        commit_items_used=commit_items_used,
+        changelog_items_used=changelog_items_used,
+        has_content=bool(selected_lines),
+    )
 
     links: list[str] = []
     if repo_url:
@@ -280,18 +317,34 @@ def render_draft(
 
     title = title_template.replace("{repo}", repo_name)
 
-    out = [
-        title,
+    return {
+        "title": title,
+        "what_shipped_lines": what_shipped_lines,
+        "why_lines": why_lines,
+        "include_validation": include_validation,
+        "include_links": include_links,
+        "links": links,
+        "stats": {
+            "commit_items_used": commit_items_used,
+            "changelog_items_used": changelog_items_used,
+            "bullet_line_count": len(selected_lines),
+        },
+    }
+
+
+def _render_markdown_from_data(data: dict[str, object]) -> str:
+    out: list[str] = [
+        str(data["title"]),
         "",
         "## What shipped",
-        what_shipped,
+        "\n".join(data["what_shipped_lines"]),
         "",
         "## Why it matters",
-        why,
+        "\n".join(data["why_lines"]),
         "",
     ]
 
-    if include_validation:
+    if bool(data["include_validation"]):
         out.extend([
             "## Validation",
             "- Tests: <fill>",
@@ -299,14 +352,151 @@ def render_draft(
             "",
         ])
 
-    if include_links:
+    if bool(data["include_links"]):
         out.extend([
             "## Links",
-            *links,
+            *[str(x) for x in data["links"]],
             "",
         ])
 
     return "\n".join(out)
+
+
+def _line_to_item_text(line: str) -> str | None:
+    s = line.strip()
+    if not s.startswith("-"):
+        return None
+    text = s[1:].strip()
+    if not text:
+        return None
+    if text.startswith("[") and text.endswith("]"):
+        return None
+    return text
+
+
+def _build_structured_items(
+    *,
+    what_shipped_lines: list[str],
+    commits: list[Commit],
+    changelog_items: list[str],
+) -> list[dict[str, object]]:
+    commit_lookup: dict[str, dict[str, object]] = {}
+    for c in commits:
+        normalized = _normalize_subject(c.subject)
+        key = _canonical_item(normalized)
+        if key and key not in commit_lookup:
+            commit_lookup[key] = {
+                "source": "commit",
+                "text": normalized,
+                "sha": c.sha,
+                "type": _commit_type(c.subject),
+                "scope": _commit_scope(c.subject),
+            }
+
+    changelog_lookup: dict[str, str] = {}
+    for item in changelog_items:
+        key = _canonical_item(item)
+        if key and key not in changelog_lookup:
+            changelog_lookup[key] = item
+
+    out: list[dict[str, object]] = []
+    seen_keys: set[str] = set()
+    for line in what_shipped_lines:
+        text = _line_to_item_text(line)
+        if not text:
+            continue
+        key = _canonical_item(text)
+        if not key or key in seen_keys:
+            continue
+        seen_keys.add(key)
+
+        if key in commit_lookup:
+            out.append(commit_lookup[key])
+        elif key in changelog_lookup:
+            out.append({"source": "changelog", "text": changelog_lookup[key]})
+        else:
+            out.append({"source": "derived", "text": text})
+
+    return out
+
+
+def build_structured_payload(
+    *,
+    schema_version: str,
+    repo_name: str,
+    base_ref: str,
+    target_ref: str,
+    range_spec: str,
+    preset: str,
+    group_by: str,
+    commits: list[Commit],
+    changelog_items: list[str],
+    render_data: dict[str, object],
+    markdown: str,
+) -> dict[str, object]:
+    stats = dict(render_data["stats"])  # shallow copy
+    return {
+        "schema_version": schema_version,
+        "repo": {"name": repo_name},
+        "range": {
+            "base_ref": base_ref or None,
+            "target_ref": target_ref,
+            "range_spec": range_spec,
+        },
+        "options": {
+            "preset": preset,
+            "group_by": group_by,
+        },
+        "stats": {
+            "raw_commit_count": len(commits),
+            "selected_commit_count": len(commits),
+            **stats,
+        },
+        "sections": {
+            "title": render_data["title"],
+            "what_shipped": render_data["what_shipped_lines"],
+            "why_it_matters": render_data["why_lines"],
+            "links": render_data["links"],
+        },
+        "items": _build_structured_items(
+            what_shipped_lines=list(render_data["what_shipped_lines"]),
+            commits=commits,
+            changelog_items=changelog_items,
+        ),
+        "markdown": markdown,
+    }
+
+
+def render_draft(
+    *,
+    repo_name: str,
+    commits: list[Commit],
+    changelog_items: list[str],
+    base_ref: str,
+    target_ref: str,
+    repo_url: str | None,
+    release_url: str | None,
+    group_by: str,
+    title_template: str,
+    include_validation: bool,
+    include_links: bool,
+    max_bullets: int,
+) -> str:
+    data = _build_render_data(
+        repo_name=repo_name,
+        commits=commits,
+        changelog_items=changelog_items,
+        base_ref=base_ref,
+        target_ref=target_ref,
+        repo_url=repo_url,
+        release_url=release_url,
+        group_by=group_by,
+        title_template=title_template,
+        include_validation=include_validation,
+        include_links=include_links,
+        max_bullets=max_bullets,
+    )
+    return _render_markdown_from_data(data)
 
 
 def cmd_draft(args: argparse.Namespace) -> int:
@@ -379,7 +569,7 @@ def cmd_draft(args: argparse.Namespace) -> int:
             commits = []
 
     repo_name = repo_path.name
-    output = render_draft(
+    render_data = _build_render_data(
         repo_name=repo_name,
         commits=commits,
         changelog_items=changelog_items,
@@ -393,17 +583,37 @@ def cmd_draft(args: argparse.Namespace) -> int:
         include_links=not args.no_links,
         max_bullets=max_bullets,
     )
+    markdown = _render_markdown_from_data(render_data)
+
+    json_output = bool(getattr(args, "json", False))
+    if json_output:
+        payload = build_structured_payload(
+            schema_version="1.0",
+            repo_name=repo_name,
+            base_ref=base_ref,
+            target_ref=target_ref,
+            range_spec=range_spec,
+            preset=preset,
+            group_by=group_by,
+            commits=commits,
+            changelog_items=changelog_items,
+            render_data=render_data,
+            markdown=markdown,
+        )
+        output_text = json.dumps(payload, indent=2, sort_keys=True)
+    else:
+        output_text = markdown
 
     if args.output:
         out_path = Path(args.output)
         if not out_path.is_absolute():
             out_path = repo_path / out_path
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(output, encoding="utf-8")
+        out_path.write_text(output_text + ("\n" if json_output else ""), encoding="utf-8")
         print(f"Wrote draft: {out_path}")
         return 0
 
-    print(output, end="")
+    print(output_text, end="" if not json_output else "\n")
     return 0
 
 
@@ -450,7 +660,8 @@ def build_parser() -> argparse.ArgumentParser:
     draft.add_argument("--title-template", help="Title template, supports {repo} placeholder")
     draft.add_argument("--no-validation", action="store_true", help="Skip Validation section")
     draft.add_argument("--no-links", action="store_true", help="Skip Links section")
-    draft.add_argument("--output", help="Write markdown output to a file")
+    draft.add_argument("--json", action="store_true", help="Emit structured JSON payload (includes markdown)")
+    draft.add_argument("--output", help="Write output to a file (markdown by default, JSON with --json)")
     draft.set_defaults(func=cmd_draft)
 
     return parser

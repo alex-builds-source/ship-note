@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 from pathlib import Path
 
@@ -460,3 +461,64 @@ def test_render_draft_respects_max_bullets_cap():
     section = draft.split("## What shipped\n", 1)[1].split("\n\n## Why", 1)[0]
     bullet_lines = [line for line in section.splitlines() if line.strip().startswith("-")]
     assert len(bullet_lines) == 2
+
+
+def test_cmd_draft_json_emits_structured_payload(tmp_path: Path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    _write(repo, "README.md", "x\n")
+    _write(repo, "CHANGELOG.md", "# Changelog\n\n## [0.1.0]\n- Added parser\n")
+    _commit_all(repo, "feat: add parser")
+
+    args = argparse.Namespace(
+        path=str(repo),
+        since_tag=None,
+        since_commit=None,
+        repo_url="https://example.com/repo",
+        release_url="https://example.com/release/v0.1.0",
+        include_type=None,
+        exclude_type=None,
+        include_scope=None,
+        exclude_scope=None,
+        preset="standard",
+        group_by="type",
+        title_template=None,
+        no_validation=False,
+        no_links=False,
+        keep_low_signal=False,
+        max_bullets=None,
+        max_changelog_items=None,
+        json=True,
+        output="out/draft.json",
+    )
+
+    rc = cmd_draft(args)
+    assert rc == 0
+
+    payload = json.loads((repo / "out" / "draft.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "1.0"
+    assert payload["repo"]["name"] == "repo"
+    assert payload["range"]["target_ref"] == "HEAD"
+    assert payload["options"]["preset"] == "standard"
+    assert isinstance(payload["items"], list) and payload["items"]
+    assert "markdown" in payload and "## What shipped" in payload["markdown"]
+
+
+def test_render_draft_why_section_is_not_placeholder_wording():
+    draft = render_draft(
+        repo_name="demo",
+        commits=[Commit(sha="1", subject="feat: add parser")],
+        changelog_items=["Added parser details"],
+        base_ref="v0.1.0",
+        target_ref="v0.1.1",
+        repo_url=None,
+        release_url=None,
+        group_by="type",
+        title_template="# {repo} devlog draft",
+        include_validation=False,
+        include_links=False,
+        max_bullets=12,
+    )
+    assert "with changelog context when available" not in draft
+    assert "Covers `v0.1.0..v0.1.1`" in draft

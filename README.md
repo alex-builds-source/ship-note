@@ -16,17 +16,24 @@ ship-note draft --since-tag v0.1.0
 ship-note draft --since-commit HEAD~5
 ship-note draft --preset short --group-by scope
 ship-note draft --preset short --max-bullets 3 --max-changelog-items 2
+ship-note draft --json
 ship-note draft --output notes/devlog-draft.md
 ```
 
 ## What it outputs
 
-Deterministic markdown sections:
+By default: deterministic markdown sections:
 - Title
 - What shipped (commit-derived bullets + optional CHANGELOG bullets)
 - Why it matters
 - Validation
 - Links
+
+Optional: structured JSON payload (`--json`) for agents/tools, including:
+- schema/version metadata
+- range/options/stats
+- normalized item list
+- section arrays + rendered markdown
 
 ## CLI docs
 
